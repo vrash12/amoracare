@@ -1,0 +1,41 @@
+@"
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache and binaries
+__pycache__/
+*.py[cod]
+*.pyd
+*.dll
+*.so
+*.egg-info/
+.pytest_cache/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Django
+db.sqlite3
+*.sqlite3
+staticfiles/
+media/
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Git and deployment
+.git/
+.gcloud/
+"@ | Set-Content .gitignore
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
