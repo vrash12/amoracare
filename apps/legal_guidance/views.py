@@ -59,6 +59,25 @@ RESTRICTED_KEYWORDS = (
     "confidential notes",
 )
 
+# Questions that ask for an explanation of a restriction are allowed.
+# They must not be treated the same as requests to reveal restricted data.
+RESTRICTED_EXPLANATION_KEYWORDS = (
+    "why can i not",
+    "why can't i",
+    "why am i not allowed",
+    "why are child profiles",
+    "why is child information",
+    "why are matching rankings",
+    "why is matching restricted",
+    "explain child profile privacy",
+    "explain matching privacy",
+    "what can parents view",
+    "who handles matching decisions",
+    "how does matching work",
+    "are child profiles restricted",
+    "are matching rankings restricted",
+)
+
 PARENT_IDENTITY_KEYWORDS = (
     "who am i",
     "what is my name",
@@ -454,11 +473,20 @@ class LegalGuidanceAskView(APIView):
             return "You’re welcome. Feel free to ask another adoption-related question."
 
         if self._contains_any(normalized, RESTRICTED_KEYWORDS):
+            # Let explanatory questions continue to retrieval and OpenAI so the
+            # assistant can explain the policy and cite official online sources.
+            if self._is_restricted_explanation_question(normalized):
+                return None
+
+            # Actual requests to reveal, browse, rank, or recommend restricted
+            # records remain blocked before retrieval or model generation.
             return (
                 "I can’t browse child profiles, reveal confidential records, rank children, "
                 "show matching scores, or provide placement recommendations. Those records "
-                "and decisions are restricted for privacy and child protection. Please contact "
-                "authorized AmoraCare staff or your assigned social worker."
+                "and decisions are restricted for privacy and child protection. You may ask "
+                "why these restrictions exist, what information parents can view, or who "
+                "handles matching decisions. For case-specific help, contact authorized "
+                "AmoraCare staff or your assigned social worker."
             )
 
         has_parent_context = bool(parent_context)
@@ -775,6 +803,11 @@ class LegalGuidanceAskView(APIView):
         if self._contains_any(normalized, CURRENT_INFORMATION_KEYWORDS):
             return True
 
+        # Privacy and matching-policy explanation questions benefit from
+        # current official sources, so let Tavily search approved domains.
+        if self._is_restricted_explanation_question(normalized):
+            return True
+
         if not local_chunks:
             return True
 
@@ -1007,6 +1040,15 @@ class LegalGuidanceAskView(APIView):
     @staticmethod
     def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
         return any(keyword in text for keyword in keywords)
+
+    @staticmethod
+    def _is_restricted_explanation_question(text: str) -> bool:
+        """Return True when the user asks why a restriction exists.
+
+        This separates harmless policy/explanation questions from requests to
+        browse, reveal, rank, or recommend protected records.
+        """
+        return any(keyword in text for keyword in RESTRICTED_EXPLANATION_KEYWORDS)
 
     @staticmethod
     def _safe_dict(value: Any) -> dict[str, Any]:
