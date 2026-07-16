@@ -247,23 +247,92 @@ TEMPLATES = [
 # DATABASE
 # =============================================================================
 
-SQLITE_DATABASE_PATH = Path(
-    os.getenv(
-        "SQLITE_DATABASE_PATH",
-        str(BASE_DIR / "db.sqlite3"),
-    )
-)
+DB_ENGINE = os.getenv(
+    "DB_ENGINE",
+    "sqlite",
+).strip().lower()
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": SQLITE_DATABASE_PATH,
-        "OPTIONS": {
-            "timeout": 20,
+if DB_ENGINE == "mysql":
+    required_database_variables = [
+        "DB_HOST",
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASSWORD",
+    ]
+
+    missing_database_variables = [
+        variable
+        for variable in required_database_variables
+        if not os.getenv(variable, "").strip()
+    ]
+
+    if missing_database_variables:
+        raise RuntimeError(
+            "Missing required MySQL environment variables: "
+            + ", ".join(missing_database_variables)
+        )
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.getenv(
+                "DB_NAME",
+                "",
+            ).strip(),
+            "USER": os.getenv(
+                "DB_USER",
+                "",
+            ).strip(),
+            "PASSWORD": os.getenv(
+                "DB_PASSWORD",
+                "",
+            ),
+            "HOST": os.getenv(
+                "DB_HOST",
+                "",
+            ).strip(),
+            "PORT": os.getenv(
+                "DB_PORT",
+                "3306",
+            ).strip(),
+            "CONN_MAX_AGE": env_int(
+                "DB_CONN_MAX_AGE",
+                default=60,
+            ),
+            "CONN_HEALTH_CHECKS": True,
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "connect_timeout": env_int(
+                    "DB_CONNECT_TIMEOUT",
+                    default=15,
+                ),
+                "init_command": (
+                    "SET sql_mode="
+                    "'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,"
+                    "NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,"
+                    "NO_ENGINE_SUBSTITUTION'"
+                ),
+            },
         },
     }
-}
 
+else:
+    SQLITE_DATABASE_PATH = Path(
+        os.getenv(
+            "SQLITE_DATABASE_PATH",
+            str(BASE_DIR / "db.sqlite3"),
+        )
+    )
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": SQLITE_DATABASE_PATH,
+            "OPTIONS": {
+                "timeout": 20,
+            },
+        },
+    }
 
 # =============================================================================
 # AUTHENTICATION AND PASSWORD VALIDATION
